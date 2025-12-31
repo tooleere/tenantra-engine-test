@@ -57,3 +57,26 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server started");
 });
+// Start round using GET so you can test in browser easily
+app.get("/round/start", async (req, res) => {
+  try {
+    const roundId = `round_${Date.now()}`;
+    const startTime = Date.now();
+    const state = { status: "running", roundId, startTime };
+
+    await redis.set("crash:state", state);
+    res.json({ ok: true, state });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
+// Read current round state
+app.get("/round/state", async (req, res) => {
+  try {
+    const state = (await redis.get("crash:state")) || { status: "idle" };
+    res.json({ ok: true, state });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
