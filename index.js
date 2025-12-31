@@ -1,31 +1,29 @@
-import express from "express";
-import { Redis } from "@upstash/redis";
-
-const app = express();
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN
-});
-
-app.get("/", (req, res) => {
-  res.send("Engine is running");
-});
-
-// Redis test endpoint
-app.get("/redis-test", async (req, res) => {
+// Create / start a new round (simple version)
+app.post("/round/start", async (req, res) => {
   try {
-    const key = "tenantra:ping";
-    const value = `pong-${Date.now()}`;
+    const roundId = `round_${Date.now()}`;
+    const startTime = Date.now();
 
-    await redis.set(key, value, { ex: 60 });
-    const readBack = await redis.get(key);
+    // For now we just store round meta (we'll add crash point + fairness next)
+    const state = {
+      status: "running",
+      roundId,
+      startTime
+    };
 
-    res.json({ ok: true, wrote: value, readBack });
+    await redis.set("crash:state", state);
+    res.json({ ok: true, state });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err) });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server started on", PORT));
+// Read current round state
+app.get("/round/state", async (req, res) => {
+  try {
+    const state = (await redis.get("crash:state")) || { status: "idle" };
+    res.json({ ok: true, state });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
